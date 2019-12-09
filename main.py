@@ -3,6 +3,7 @@ import glob
 import os
 import time
 from collections import deque
+from multiprocessing import Process
 
 import gym
 import numpy as np
@@ -22,8 +23,14 @@ from evaluation import evaluate
 from matplotlib import pyplot as plt
 
 
-def main():
-    args = get_args()
+def main(args, worker_num):
+    """
+    Main function for multiprocess usage
+    
+    :param args: argparse args
+    :param worker_num: int, worker number
+    """
+    print('===== Starting worker {} ====='.format(worker_num))
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -212,25 +219,42 @@ def main():
             evaluate(actor_critic, ob_rms, args.env_name, args.seed,
                      args.num_processes, eval_log_dir, device)
 
-    plot_avg_reward(args, average_reward_list)  # plot
+    plot_avg_reward(args, average_reward_list, worker_num)  # plot
 
 
-def plot_avg_reward(args, avg_reward_list):
+def plot_avg_reward(args, avg_reward_list, worker_num):
     """
     Helper function to plot and save average reward over training episodes
     
     :param args: arguments from argparse
     :param avg_reward_list: array like, list of average reward
+    :param worker_num: int, worker number
     """
     env_name = args.env_name
     plt.plot(avg_reward_list)
     plt.title('Average Reward, Env: {}'.format(env_name))
     plt.xlabel('updates')
     plt.ylabel('average reward')
-    np.save(os.path.join('./imgs', env_name + '_avg_reward.npy'), np.array(avg_reward_list))
-    plt.savefig(os.path.join('./imgs', env_name + '_avg_reward.png'))
+
+    # create sub dirs
+    if args.gail:
+        dir_name = './imgs/GAIL avg reward'
+    else:
+        dir_name = './imgs/PPO avg reward'
+
+    np.save(os.path.join(dir_name, env_name + '_avg_reward_{}.npy'.format(worker_num)), np.array(avg_reward_list))
+    plt.savefig(os.path.join(dir_name, env_name + '_avg_reward_{}.png'.format(worker_num)))
     plt.show()
 
 
 if __name__ == "__main__":
-    main()
+    args = get_args()
+    
+    processes = []
+    for i in range(8):
+        p = Process(target=main, args=(args, i))
+        p.start()
+        processes.append(p)
+    
+    for p in processes:
+        p.join()

@@ -32,8 +32,10 @@ def main(args, worker_num):
     """
     print('===== Starting worker {} ====='.format(worker_num))
 
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
+    # set random seed
+    torch.manual_seed(args.seed * worker_num)
+    torch.cuda.manual_seed_all(args.seed * worker_num)
+    np.random.seed(args.seed * worker_num)
 
     if args.cuda and torch.cuda.is_available() and args.cuda_deterministic:
         torch.backends.cudnn.benchmark = False

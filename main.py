@@ -19,6 +19,8 @@ from a2c_ppo_acktr.model import Policy
 from a2c_ppo_acktr.storage import RolloutStorage
 from evaluation import evaluate
 
+from matplotlib import pyplot as plt
+
 
 def main():
     args = get_args()
@@ -72,6 +74,7 @@ def main():
             actor_critic, args.value_loss_coef, args.entropy_coef, acktr=True)
 
     if args.gail:
+        print('***** Using GAIL *****')
         assert len(envs.observation_space.shape) == 1
         discr = gail.Discriminator(
             envs.observation_space.shape[0] + envs.action_space.shape[0], 100,
@@ -81,7 +84,7 @@ def main():
                 args.env_name.split('-')[0].lower()))
         
         expert_dataset = gail.ExpertDataset(
-            file_name, num_trajectories=4, subsample_frequency=args.gail_subsample_frequency)	# TODO: does not work with Reacher
+            file_name, num_trajectories=args.gail_traj_num, subsample_frequency=args.gail_subsample_frequency)	# NOTE: default 4, 20
         drop_last = len(expert_dataset) > args.gail_batch_size
         gail_train_loader = torch.utils.data.DataLoader(
             dataset=expert_dataset,
@@ -99,11 +102,22 @@ def main():
 
     episode_rewards = deque(maxlen=10)
 
+    average_reward_list = []    # placeholder for plot
+
     start = time.time()
     num_updates = int(
         args.num_env_steps) // args.num_steps // args.num_processes
+    
+    if args.use_rs:
+        reward_dp = 0.5
+        print('Using reward sampling, set reward_dp = {}'.format(reward_dp))
+        if args.use_linear_rs_decay:
+            print('Using linear reward sampling decay')
+    else:
+        reward_dp = 1
     for j in range(num_updates):
-
+        if args.use_rs and args.use_linear_rs_decay:
+            reward_dp *= 0.99
         if args.use_linear_lr_decay:
             # decrease learning rate linearly
             utils.update_linear_schedule(
@@ -130,6 +144,8 @@ def main():
             bad_masks = torch.FloatTensor(
                 [[0.0] if 'bad_transition' in info.keys() else [1.0]
                  for info in infos])
+
+            # TODO: change rollout to store achieved and desired goals
             rollouts.insert(obs, recurrent_hidden_states, action,
                             action_log_prob, value, reward, masks, bad_masks)
 
@@ -149,10 +165,12 @@ def main():
                 discr.update(gail_train_loader, rollouts,
                              utils.get_vec_normalize(envs)._obfilt)
 
+            # TODO: maybe introduce HER reward here with some prob?
             for step in range(args.num_steps):
-                rollouts.rewards[step] = discr.predict_reward(
-                    rollouts.obs[step], rollouts.actions[step], args.gamma,
-                    rollouts.masks[step])
+                if np.random.random() < reward_dp:
+                    rollouts.rewards[step] = discr.predict_reward(
+                        rollouts.obs[step], rollouts.actions[step], args.gamma,
+                        rollouts.masks[step])
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma,
                                  args.gae_lambda, args.use_proper_time_limits)
@@ -186,12 +204,32 @@ def main():
                         np.median(episode_rewards), np.min(episode_rewards),
                         np.max(episode_rewards), dist_entropy, value_loss,
                         action_loss))
+            average_reward_list.append(np.mean(episode_rewards))    # store average reward
 
         if (args.eval_interval is not None and len(episode_rewards) > 1
                 and j % args.eval_interval == 0):
             ob_rms = utils.get_vec_normalize(envs).ob_rms
             evaluate(actor_critic, ob_rms, args.env_name, args.seed,
                      args.num_processes, eval_log_dir, device)
+
+    plot_avg_reward(args, average_reward_list)  # plot
+
+
+def plot_avg_reward(args, avg_reward_list):
+    """
+    Helper function to plot and save average reward over training episodes
+    
+    :param args: arguments from argparse
+    :param avg_reward_list: array like, list of average reward
+    """
+    env_name = args.env_name
+    plt.plot(avg_reward_list)
+    plt.title('Average Reward, Env: {}'.format(env_name))
+    plt.xlabel('updates')
+    plt.ylabel('average reward')
+    np.save(os.path.join('./imgs', env_name + '_avg_reward.npy'), np.array(avg_reward_list))
+    plt.savefig(os.path.join('./imgs', env_name + '_avg_reward.png'))
+    plt.show()
 
 
 if __name__ == "__main__":

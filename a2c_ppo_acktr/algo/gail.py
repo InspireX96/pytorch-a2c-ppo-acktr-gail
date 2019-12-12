@@ -39,8 +39,7 @@ class Discriminator(nn.Module):
 
         alpha = alpha.expand_as(expert_data).to(expert_data.device)
 
-        # import ipdb; ipdb.set_trace()
-        # TODO: fix this fucking bug
+        # fix unmatched size bug
         try:
             mixup_data = alpha * expert_data + (1 - alpha) * policy_data
         except Exception as err:
@@ -106,7 +105,8 @@ class Discriminator(nn.Module):
             self.eval()
             d = self.trunk(torch.cat([state, action], dim=1))
             s = torch.sigmoid(d)
-            reward = s.log() - (1 - s).log()
+            # reward = s.log() - (1 - s).log()
+            reward = - (1-s).log()
             if self.returns is None:
                 self.returns = reward.clone()
 
@@ -114,7 +114,7 @@ class Discriminator(nn.Module):
                 self.returns = self.returns * masks * gamma + reward
                 self.ret_rms.update(self.returns.cpu().numpy())
 
-            return reward / np.sqrt(self.ret_rms.var[0] + 1e-8)
+            return reward #/ np.sqrt(self.ret_rms.var[0] + 1e-8)
 
 
 class ExpertDataset(torch.utils.data.Dataset):

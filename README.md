@@ -1,3 +1,62 @@
+# GAIL with Reward Sampling
+
+ECE 276C final project
+
+Linjun Li and Mingwei Xu
+
+## Disclaimer
+
+The original GAIL implementation is based on [https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail](https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail)
+
+
+## Reproduce the results
+
+To reproduce the PPO results:
+
+```
+python main.py --env-name "Reacher-v2" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 10 --no-cuda
+```
+
+```
+python main.py --env-name "FetchReach-v1" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 500 --no-cuda
+```
+
+To reproduce the GAIL:
+
+```
+python main.py --env-name "Reacher-v2" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 10 --no-cuda --gail
+```
+
+```
+python main.py --env-name "FetchReach-v1" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 500 --no-cuda --gail
+```
+
+To reproduce the GAIL with reward sampling results (without weight decay):
+
+```
+python main.py --env-name "Reacher-v2" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 10 --no-cuda --gail --use-rs
+```
+
+```
+python main.py --env-name "FetchReach-v1" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 500 --no-cuda --gail --use-rs
+```
+
+To reproduce the GAIL with reward sampling results (with weight decay):
+
+```
+python main.py --env-name "Reacher-v2" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 10 --no-cuda --gail --use-rs --use-linear-rs-decay
+```
+
+```
+python main.py --env-name "FetchReach-v1" --algo ppo --log-interval 1 --num-steps 2048 --num-processes 1 --lr 3e-4 --entropy-coef 0 --value-loss-coef 0.5 --ppo-epoch 10 --num-mini-batch 32 --gamma 0.99 --num-env-steps 500000 --use-linear-lr-decay --use-proper-time-limits --gail-subsample-frequency 1 --gail-traj-num 500 --no-cuda --gail --use-rs --use-linear-rs-decay
+```
+
+## Generate the plots
+
+Please checkout branch **plot-result** to plot the results.
+
+
+
 # pytorch-a2c-ppo-acktr
 
 ## Please use hyper parameters from this readme. With other hyper parameters things might not work (it's RL after all)!
